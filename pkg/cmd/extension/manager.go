@@ -191,9 +191,11 @@ func (m *Manager) InstallBin(client *http.Client, repo ghrepo.Interface) error {
 	}
 
 	arch := runtime.GOARCH
+	goos := runtime.GOOS
+	suffix := fmt.Sprintf("%s-%s", goos, arch)
 	var asset *releaseAsset
 	for _, a := range r.Assets {
-		if strings.HasSuffix(a.Name, arch) {
+		if strings.HasSuffix(a.Name, suffix) {
 			asset = &a
 			break
 		}
@@ -202,7 +204,7 @@ func (m *Manager) InstallBin(client *http.Client, repo ghrepo.Interface) error {
 	if asset == nil {
 		return fmt.Errorf("%s unsupported for %s. Open an issue: `gh issue create -R%s/%s -t'Support %s'`",
 			repo.RepoName(),
-			arch, repo.RepoOwner(), repo.RepoName(), arch)
+			suffix, repo.RepoOwner(), repo.RepoName(), suffix)
 	}
 
 	name := repo.RepoName()
