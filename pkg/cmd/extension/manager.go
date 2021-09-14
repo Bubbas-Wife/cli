@@ -179,7 +179,8 @@ type BinManifest struct {
 	Owner string
 	Name  string
 	Host  string
-	Path  string
+	// TODO I may end up not using this; just thinking ahead to local installs
+	Path string
 }
 
 func (m *Manager) InstallBin(client *http.Client, repo ghrepo.Interface) error {
@@ -190,32 +191,37 @@ func (m *Manager) InstallBin(client *http.Client, repo ghrepo.Interface) error {
 	}
 
 	arch := runtime.GOARCH
-	found := false
+	var asset *releaseAsset
 	for _, a := range r.Assets {
 		if strings.HasSuffix(a.Name, arch) {
-			found = true
+			asset = &a
 			break
 		}
 	}
 
-	if !found {
+	if asset == nil {
 		return fmt.Errorf("%s unsupported for %s. Open an issue: `gh issue create -R%s/%s -t'Support %s'`",
 			repo.RepoName(),
 			arch, repo.RepoOwner(), repo.RepoName(), arch)
 	}
 
 	name := repo.RepoName()
-
 	targetDir := filepath.Join(m.installDir(), name)
+	// TODO clean this up if function errs?
 	os.MkdirAll(targetDir, 0755)
 
-	// TODO download binary and save as gh-foo
+	binPath := filepath.Join(targetDir, name)
+
+	err = downloadAsset(client, *asset, binPath)
+	if err != nil {
+		return fmt.Errorf("failed to download asset %s: %w", asset.Name, err)
+	}
 
 	manifest := BinManifest{
 		Name:  name,
 		Owner: repo.RepoOwner(),
-		Host:  "TODO",
-		Path:  "TODO",
+		Host:  repo.RepoHost(),
+		Path:  binPath,
 	}
 
 	bs, err := yaml.Marshal(manifest)
