@@ -210,7 +210,10 @@ func (m *Manager) InstallBin(client *http.Client, repo ghrepo.Interface) error {
 	name := repo.RepoName()
 	targetDir := filepath.Join(m.installDir(), name)
 	// TODO clean this up if function errs?
-	os.MkdirAll(targetDir, 0755)
+	err = os.MkdirAll(targetDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create installation directory: %w", err)
+	}
 
 	binPath := filepath.Join(targetDir, name)
 
