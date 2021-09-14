@@ -20,6 +20,7 @@ import (
 	"github.com/cli/cli/v2/pkg/extensions"
 	"github.com/cli/cli/v2/pkg/findsh"
 	"github.com/cli/safeexec"
+	"gopkg.in/yaml.v3"
 )
 
 type Manager struct {
@@ -174,6 +175,13 @@ func (m *Manager) InstallLocal(dir string) error {
 	return makeSymlink(dir, targetLink)
 }
 
+type BinManifest struct {
+	Owner string
+	Name  string
+	Host  string
+	Path  string
+}
+
 func (m *Manager) InstallBin(client *http.Client, repo ghrepo.Interface) error {
 	var r *release
 	r, err := fetchLatestRelease(client, repo)
@@ -196,11 +204,37 @@ func (m *Manager) InstallBin(client *http.Client, repo ghrepo.Interface) error {
 			arch, repo.RepoOwner(), repo.RepoName(), arch)
 	}
 
-	// TODO create directory
-	// TODO create manifest file
+	name := repo.RepoName()
+
+	targetDir := filepath.Join(m.installDir(), name)
+	os.MkdirAll(targetDir, 0755)
+
 	// TODO download binary and save as gh-foo
 
-	fmt.Println("BIN INSTALL")
+	manifest := BinManifest{
+		Name:  name,
+		Owner: repo.RepoOwner(),
+		Host:  "TODO",
+		Path:  "TODO",
+	}
+
+	bs, err := yaml.Marshal(manifest)
+	if err != nil {
+		return fmt.Errorf("failed to serialize manifest: %w", err)
+	}
+
+	manifestPath := filepath.Join(targetDir, "manifest.yml")
+
+	f, err := os.OpenFile(manifestPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open manifest for writing: %w", err)
+	}
+	defer f.Close()
+
+	_, err = f.Write(bs)
+	if err != nil {
+		return fmt.Errorf("failed write manifest file: %w", err)
+	}
 
 	return nil
 }
