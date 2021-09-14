@@ -3,6 +3,7 @@ package extension
 import (
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/cli/cli/v2/internal/config"
 	"github.com/cli/cli/v2/pkg/cmdutil"
 	"github.com/cli/cli/v2/pkg/extensions"
+	"github.com/cli/cli/v2/pkg/httpmock"
 	"github.com/cli/cli/v2/pkg/iostreams"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +27,7 @@ func TestNewCmdExtension(t *testing.T) {
 	tests := []struct {
 		name         string
 		args         []string
+		httpStubs    func(*httpmock.Registry)
 		managerStubs func(em *extensions.ExtensionManagerMock) func(*testing.T)
 		isTTY        bool
 		wantErr      bool
@@ -35,6 +38,11 @@ func TestNewCmdExtension(t *testing.T) {
 		{
 			name: "install an extension",
 			args: []string{"install", "owner/gh-some-ext"},
+			httpStubs: func(reg *httpmock.Registry) {
+				reg.Register(
+					httpmock.REST("GET", "repos/owner/gh-some-ext/contents/gh-some-ext"),
+					httpmock.StringResponse("a script"))
+			},
 			managerStubs: func(em *extensions.ExtensionManagerMock) func(*testing.T) {
 				em.ListFunc = func(bool) []extensions.Extension {
 					return []extensions.Extension{}
@@ -281,12 +289,23 @@ func TestNewCmdExtension(t *testing.T) {
 				assertFunc = tt.managerStubs(em)
 			}
 
+			reg := httpmock.Registry{}
+			defer reg.Verify(t)
+			client := http.Client{Transport: &reg}
+
+			if tt.httpStubs != nil {
+				tt.httpStubs(&reg)
+			}
+
 			f := cmdutil.Factory{
 				Config: func() (config.Config, error) {
 					return config.NewBlankConfig(), nil
 				},
 				IOStreams:        ios,
 				ExtensionManager: em,
+				HttpClient: func() (*http.Client, error) {
+					return &client, nil
+				},
 			}
 
 			cmd := NewCmdExtension(&f)
