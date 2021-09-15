@@ -19,7 +19,7 @@ A clear and concise description of what the bug is. Include version by typing `g
 
 ### Expected vs actual behavior
 
-A clear and concise description of what you expected to happen and what actually happened.
+A clear and concise description of what you expected to happen and what actually happened `gh --version' .
 
 ### Logs
 
